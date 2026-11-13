@@ -10,9 +10,12 @@ services: #docker compose expects this
     environment:
       - PORT=8000
     env_file:
-      - .env.example
+      - .env
     volumes:
       - ./backend/src:/app
+    depends_on:
+      db_service:
+        condition: service_healthy
     develop:
       watch:
         - action: rebuild
@@ -22,13 +25,30 @@ services: #docker compose expects this
         - action: sync
           path: backend/src/
           target: /app
-  static_html:
-    # image: python:3.13.4-slim-bullseye
-    build:
-      context: ./static_html
-      dockerfile: static.Dockerfile
+  db_service:
+    image: postgres:17.5
     ports:
-      - 8000:8000
-    command: python3 -m http.server 8000
+      - 5432:5432
+    env_file:
+      - .env
     volumes:
-      - ./static_html/src:/app
+      - managed_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+  # static_html:
+  #   # image: python:3.13.4-slim-bullseye
+  #   build:
+  #     context: ./static_html
+  #     dockerfile: static.Dockerfile
+  #   ports:
+  #     - 8000:8000
+  #   command: python3 -m http.server 8000
+  #   volumes:
+  #     - ./static_html/src:/app
+
+volumes:
+  managed_db_data:
